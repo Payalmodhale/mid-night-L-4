@@ -1,0 +1,6 @@
+node_modules/
+dist/
+build/
+git-commit-history.ps1
+.DS_Store
+*.log
