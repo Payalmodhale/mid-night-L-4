@@ -1,0 +1,60 @@
+{
+  "contractName": "SealedBidAuction",
+  "language": "Compact",
+  "version": "0.1.0",
+  "networkTarget": "Midnight Preprod Network",
+  "preprodContractAddress": "0x02007a89f3c1d4e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9",
+  "compilationTimestamp": "2026-09-11T09:45:18.959Z",
+  "publicState": [
+    "seller: Bytes<32>",
+    "assetId: Bytes<32>",
+    "reservePrice: Uint<64>",
+    "auctionDeadline: Uint<64>",
+    "isFinalized: Boolean",
+    "highestBidCommitment: Bytes<32>",
+    "winningBidderCommitment: Bytes<32>",
+    "totalBidsCount: Uint<32>"
+  ],
+  "circuits": [
+    {
+      "name": "submitBid",
+      "privateInputs": [
+        "bidAmount: Uint<64>",
+        "secretNonce: Bytes<32>"
+      ],
+      "publicInputs": [
+        "bidderPk: Bytes<32>",
+        "timestamp: Uint<64>"
+      ],
+      "publicOutput": "Bytes<32> (Poseidon Commitment Hash)",
+      "constraintsCount": 1420,
+      "proofSystem": "Groth16 / Plonk over BN254"
+    },
+    {
+      "name": "revealWinningBid",
+      "privateInputs": [
+        "winningBidAmount: Uint<64>",
+        "winningNonce: Bytes<32>"
+      ],
+      "publicInputs": [
+        "claimedCommitment: Bytes<32>",
+        "bidderPk: Bytes<32>"
+      ],
+      "publicOutput": "Boolean",
+      "constraintsCount": 890,
+      "proofSystem": "Groth16 / Plonk over BN254"
+    },
+    {
+      "name": "finalizeAuction",
+      "privateInputs": [],
+      "publicInputs": [
+        "topCommitment: Bytes<32>",
+        "topBidderPk: Bytes<32>"
+      ],
+      "publicOutput": "Void",
+      "constraintsCount": 310,
+      "proofSystem": "Standard Consensus Verification"
+    }
+  ],
+  "verificationKeyHash": "0xa3f9b2c8e1d4f6a8b0c2d4e6f8a0b2c4d6e8f0a2b4c6d8e0f2a4b6c8d0e2f4a6"
+}

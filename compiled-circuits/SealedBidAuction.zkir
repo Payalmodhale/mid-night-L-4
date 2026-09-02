@@ -1,0 +1,9 @@
+// Midnight ZK Intermediate Representation (ZKIR) v0.1.0
+// Contract: SealedBidAuction
+// Network: Preprod
+
+module SealedBidAuction {
+  circuit submitBid(private bidAmount: u64, private secretNonce: bytes32, public bidderPk: bytes32) -> bytes32;
+  circuit revealWinningBid(private winningBidAmount: u64, private winningNonce: bytes32, public claimedCommitment: bytes32) -> bool;
+  circuit finalizeAuction(public topCommitment: bytes32, public topBidderPk: bytes32);
+}
