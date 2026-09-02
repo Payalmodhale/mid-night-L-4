@@ -1,0 +1,106 @@
+// Midnight Network Compact Smart Contract
+// Contract: SealedBidAuction
+// Feature: Sealed-Bid Auction with Selective Disclosure & Zero-Knowledge Verification
+// Mission: Half light, half shadow — Private bids with publicly verifiable settlement
+
+pragma language_version >= 0.1.0;
+
+import CompactStandardLibrary;
+
+export ledger SealedBidAuction {
+  // PUBLIC STATE (Visible on-chain to all observers)
+  public seller: Bytes<32>;
+  public assetId: Bytes<32>;
+  public reservePrice: Uint<64>;
+  public auctionDeadline: Uint<64>;
+  public isFinalized: Boolean;
+  public highestBidCommitment: Bytes<32>;
+  public winningBidderCommitment: Bytes<32>;
+  public totalBidsCount: Uint<32>;
+
+  // PRIVATE STATE (Known ONLY to the respective bidder wallet in zero-knowledge)
+  // Kept off-chain in private state database
+  // - private bidAmount: Uint<64>
+  // - private secretNonce: Bytes<32>
+
+  constructor(
+    _seller: Bytes<32>,
+    _assetId: Bytes<32>,
+    _reservePrice: Uint<64>,
+    _auctionDeadline: Uint<64>
+  ) {
+    seller = _seller;
+    assetId = _assetId;
+    reservePrice = _reservePrice;
+    auctionDeadline = _auctionDeadline;
+    isFinalized = false;
+    highestBidCommitment = pad(32, "");
+    winningBidderCommitment = pad(32, "");
+    totalBidsCount = 0;
+  }
+
+  // CIRCUIT 1: Submit Private Bid Commitment
+  // Private input: bidAmount (Uint64), secretNonce (Bytes32)
+  // Public output: bidCommitment (Poseidon hash of bidAmount + secretNonce + bidderPk)
+  export circuit submitBid(
+    private bidAmount: Uint<64>,
+    private secretNonce: Bytes<32>,
+    public bidderPk: Bytes<32>,
+    public timestamp: Uint<64>
+  ): Bytes<32> {
+    // Assert auction is still active
+    assert(timestamp <= auctionDeadline, "Auction has expired");
+    assert(!isFinalized, "Auction is already finalized");
+
+    // ZK Constraint: Bid must satisfy minimum reserve price without revealing exact amount
+    assert(bidAmount >= reservePrice, "Bid amount must be at least the reserve price");
+
+    // Compute cryptographic commitment using Poseidon ZK hash
+    // Poseidon(bidAmount || secretNonce || bidderPk)
+    const commitment: Bytes<32> = poseidonHash3(
+      u64ToBytes(bidAmount),
+      secretNonce,
+      bidderPk
+    );
+
+    // Update public ledger counter
+    totalBidsCount = totalBidsCount + 1;
+
+    return commitment;
+  }
+
+  // CIRCUIT 2: Selective Disclosure - Verify Winner
+  // Allows highest bidder to prove they hold the winning commitment without disclosing losing bids
+  export circuit revealWinningBid(
+    private winningBidAmount: Uint<64>,
+    private winningNonce: Bytes<32>,
+    public claimedCommitment: Bytes<32>,
+    public bidderPk: Bytes<32>
+  ): Boolean {
+    assert(isFinalized, "Auction must be finalized before revealing");
+
+    // Recompute commitment inside ZK circuit
+    const recomputedCommitment: Bytes<32> = poseidonHash3(
+      u64ToBytes(winningBidAmount),
+      winningNonce,
+      bidderPk
+    );
+
+    // Assert that the private inputs match the public commitment recorded on-chain
+    assert(recomputedCommitment == claimedCommitment, "ZK Proof mismatch: Private bid does not match public commitment");
+    assert(claimedCommitment == highestBidCommitment, "Submitted proof does not match highest winning commitment");
+
+    return true;
+  }
+
+  // CIRCUIT 3: Finalize Auction (Seller / Consensus)
+  export circuit finalizeAuction(
+    public topCommitment: Bytes<32>,
+    public topBidderPk: Bytes<32>
+  ): Void {
+    assert(!isFinalized, "Auction already finalized");
+    highestBidCommitment = topCommitment;
+    winningBidderCommitment = topBidderPk;
+    isFinalized = true;
+  }
+}
