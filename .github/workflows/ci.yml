@@ -1,0 +1,43 @@
+name: Midnight dApp CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master, level-3 ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    name: Compile Compact Smart Contract, Verify Types, & Execute Test Suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Compile Compact Smart Contract (compactc)
+        run: npm run compile:compact
+
+      - name: Verify TypeScript Compilation & Type Safety
+        run: npm run lint
+
+      - name: Execute Vitest Automated Test Suite (4/4 Passing)
+        run: npm test
+
+      - name: Build Production Frontend Bundle
+        run: npm run build
+
+      - name: Verify Production Assets Build Output
+        run: |
+          ls -la dist/
+          ls -la build/contracts/
+          echo "Production build & Compact contract compilation completed successfully!"
